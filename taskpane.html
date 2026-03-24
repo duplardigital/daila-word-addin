@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DAILA</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f7f6f3;
+      --surface: #ffffff;
+      --border: #e4e2db;
+      --text-primary: #1a1917;
+      --text-secondary: #6b6960;
+      --text-hint: #a09e96;
+      --accent: #2d4a8a;
+      --accent-light: #e8edf7;
+      --success: #1a6b3a;
+      --success-light: #e6f4ec;
+      --error: #8a2d2d;
+      --error-light: #f7e8e8;
+      --warning-light: #fdf3e6;
+      --font: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text-primary);
+      font-size: 13px;
+      line-height: 1.5;
+      min-height: 100vh;
+      padding: 0;
+    }
+
+    /* Header */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 16px 12px;
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+    .logo {
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .logo svg { width: 16px; height: 16px; }
+    .header-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+    .header-sub { font-size: 11px; color: var(--text-hint); padding-left: 38px; }
+
+    /* Document chip */
+    .doc-chip {
+      margin: 12px 16px 0;
+      background: var(--accent-light);
+      border: 1px solid #c5d0e8;
+      border-radius: 6px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .doc-chip svg { width: 14px; height: 14px; color: var(--accent); flex-shrink: 0; }
+    .doc-name { font-size: 12px; color: var(--accent); font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Section label */
+    .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-hint);
+      padding: 16px 16px 8px;
+    }
+
+    /* Action cards */
+    .actions { padding: 0 12px; display: flex; flex-direction: column; gap: 8px; }
+
+    .action-btn {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 14px;
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      transition: border-color 0.15s, background 0.15s, transform 0.1s;
+      position: relative;
+      overflow: hidden;
+    }
+    .action-btn:hover { border-color: #c5d0e8; background: #fafaf8; }
+    .action-btn:active { transform: scale(0.99); }
+    .action-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .action-btn.running { border-color: var(--accent); background: var(--accent-light); }
+
+    .action-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .action-icon svg { width: 18px; height: 18px; }
+    .icon-purple { background: #eeebfe; }
+    .icon-teal   { background: #e3f5ee; }
+    .icon-coral  { background: #fceee9; }
+
+    .action-text { flex: 1; min-width: 0; }
+    .action-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
+    .action-desc  { font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
+
+    .action-arrow {
+      font-size: 16px;
+      color: var(--text-hint);
+      align-self: center;
+      flex-shrink: 0;
+      transition: transform 0.15s, color 0.15s;
+    }
+    .action-btn:hover .action-arrow { transform: translateX(3px); color: var(--accent); }
+    .action-btn.running .action-arrow { display: none; }
+
+    /* Spinner */
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #c5d0e8;
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+      align-self: center;
+      display: none;
+    }
+    .action-btn.running .spinner { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Status / result area */
+    .result-area {
+      margin: 12px 12px 0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.5;
+      display: none;
+    }
+    .result-area.visible { display: block; }
+    .result-area.success { background: var(--success-light); border: 1px solid #a8d8bb; color: var(--success); }
+    .result-area.error   { background: var(--error-light);   border: 1px solid #d8a8a8; color: var(--error); }
+    .result-area.info    { background: var(--warning-light); border: 1px solid #e8d0a0; color: #7a5a1a; }
+
+    .result-header { font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+    .result-body { font-size: 11px; opacity: 0.85; }
+
+    /* Download button inside result */
+    .download-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .download-btn:hover { opacity: 0.88; }
+    .download-btn svg { width: 13px; height: 13px; }
+
+    /* Footer */
+    .footer {
+      margin-top: 20px;
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #1a6b3a;
+      flex-shrink: 0;
+    }
+    .status-dot.error { background: var(--error); }
+    .footer-text { font-size: 11px; color: var(--text-hint); }
+
+    /* Progress bar */
+    .progress-bar-wrap {
+      height: 2px;
+      background: var(--border);
+      overflow: hidden;
+      display: none;
+    }
+    .progress-bar-wrap.visible { display: block; }
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width 0.4s ease;
+    }
+    @keyframes indeterminate {
+      0%   { left: -40%; width: 40%; }
+      100% { left: 100%; width: 40%; }
+    }
+    .progress-bar.indeterminate {
+      width: 40%;
+      position: relative;
+      animation: indeterminate 1.2s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <div class="logo">
+        <svg viewBox="0 0 16 16" fill="none">
+          <rect x="2" y="2" width="12" height="2" rx="1" fill="white"/>
+          <rect x="2" y="6" width="9" height="2" rx="1" fill="white"/>
+          <rect x="2" y="10" width="10" height="2" rx="1" fill="white"/>
+        </svg>
+      </div>
+      <span class="header-title">DAILA</span>
+    </div>
+    <div class="header-sub">Document AI for Legal Analysis</div>
+  </div>
+
+  <!-- Progress bar (indeterminate while running) -->
+  <div class="progress-bar-wrap" id="progressWrap">
+    <div class="progress-bar indeterminate" id="progressBar"></div>
+  </div>
+
+  <!-- Active document chip -->
+  <div class="doc-chip" id="docChip">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M3 2h7l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/>
+      <path d="M10 2v4h4"/>
+    </svg>
+    <span class="doc-name" id="docName">Loading document…</span>
+  </div>
+
+  <!-- Actions -->
+  <div class="section-label">Actions</div>
+  <div class="actions">
+
+    <!-- Document Summary -->
+    <button class="action-btn" id="btn-summary" onclick="runAction('summary')">
+      <div class="action-icon icon-purple">
+        <svg viewBox="0 0 18 18" fill="none" stroke="#534AB7" stroke-width="1.5">
+          <rect x="2" y="2" width="14" height="14" rx="2"/>
+          <path d="M5 6h8M5 9h6M5 12h4"/>
+        </svg>
+      </div>
+      <div class="action-text">
+        <div class="action-title">Document summary</div>
+        <div class="action-desc">Generate a concise summary of key points and content</div>
+      </div>
+      <div class="spinner"></div>
+      <div class="action-arrow">›</div>
+    </button>
+
+    <!-- Contract Analysis -->
+    <button class="action-btn" id="btn-contract" onclick="runAction('contract')">
+      <div class="action-icon icon-teal">
+        <svg viewBox="0 0 18 18" fill="none" stroke="#0F6E56" stroke-width="1.5">
+          <path d="M9 2L2 6v6l7 4 7-4V6L9 2z"/>
+          <path d="M9 10V7M9 12.5v.5"/>
+        </svg>
+      </div>
+      <div class="action-text">
+        <div class="action-title">Contract analysis</div>
+        <div class="action-desc">Identify key clauses, risks and obligations</div>
+      </div>
+      <div class="spinner"></div>
+      <div class="action-arrow">›</div>
+    </button>
+
+    <!-- Issue List -->
+    <button class="action-btn" id="btn-issues" onclick="runAction('issues')">
+      <div class="action-icon icon-coral">
+        <svg viewBox="0 0 18 18" fill="none" stroke="#993C1D" stroke-width="1.5">
+          <circle cx="9" cy="9" r="7"/>
+          <path d="M6 9l2 2 4-4"/>
+        </svg>
+      </div>
+      <div class="action-text">
+        <div class="action-title">Issue list generation</div>
+        <div class="action-desc">Extract and categorise issues requiring attention</div>
+      </div>
+      <div class="spinner"></div>
+      <div class="action-arrow">›</div>
+    </button>
+
+  </div>
+
+  <!-- Result / status area -->
+  <div class="result-area" id="resultArea">
+    <div class="result-header" id="resultHeader"></div>
+    <div class="result-body"  id="resultBody"></div>
+    <div id="resultActions"></div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="status-dot" id="statusDot"></div>
+    <span class="footer-text" id="statusText">Ready</span>
+  </div>
+
+  <script src="taskpane.js"></script>
+</body>
+</html>
