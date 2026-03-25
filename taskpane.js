@@ -43,8 +43,7 @@ async function runAction(action) {
   const webhookUrl = WEBHOOKS[action];
 
   if (!webhookUrl || webhookUrl.startsWith('PASTE_')) {
-    showResult('error', 'Webhook not configured',
-      `Open taskpane.js and paste your Make webhook URL for "${ACTION_LABELS[action]}".`);
+    showResult('error', 'Webhook not configured', 'Check webhook URLs.');
     return;
   }
 
@@ -52,36 +51,42 @@ async function runAction(action) {
   clearResult();
 
   try {
-    // 1. Get document as base64 from Word
-    const base64Doc = await getDocumentAsBase64();
-    const docName   = document.getElementById('docName').textContent || 'document.docx';
+    console.log('Step 1: starting');
+    showResult('info', 'Debug', 'Step 1: starting...');
 
-    // 2. POST to Make webhook
-    showStatus(`Running ${ACTION_LABELS[action]}…`);
+    const base64Doc = await getDocumentAsBase64();
+    console.log('Step 2: got document, length:', base64Doc.length);
+    showResult('info', 'Debug', 'Step 2: document read OK, length: ' + base64Doc.length);
+
+    const docName = document.getElementById('docName').textContent || 'document.docx';
+    console.log('Step 3: calling webhook:', webhookUrl);
+    showResult('info', 'Debug', 'Step 3: calling Make webhook...');
+
     const response = await fetch(webhookUrl, {
-      method:  'POST',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action:       action,
-        filename:     docName,
-        document:     base64Doc,   // base64-encoded .docx
-        timestamp:    new Date().toISOString(),
+        action: action,
+        filename: docName,
+        document: base64Doc,
+        timestamp: new Date().toISOString(),
       }),
     });
+
+    console.log('Step 4: response status:', response.status);
+    showResult('info', 'Debug', 'Step 4: Make responded with status ' + response.status);
 
     if (!response.ok) {
       throw new Error(`Make returned ${response.status}: ${response.statusText}`);
     }
 
     const result = await response.json();
-
-    // 3. Handle the response
+    console.log('Step 5: result:', result);
     await handleResult(action, result, docName);
 
   } catch (err) {
     console.error('DAILA error:', err);
-    showResult('error', 'Something went wrong', err.message);
-    showStatus('Error — see details above', true);
+    showResult('error', 'Error: ' + err.message, err.stack || '');
   } finally {
     setRunning(action, false);
   }
