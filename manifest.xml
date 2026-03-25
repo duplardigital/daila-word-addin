@@ -13,7 +13,7 @@
   <DefaultLocale>en-GB</DefaultLocale>
 
   <DisplayName DefaultValue="DAILA"/>
-  <Description DefaultValue="Document AI for Legal Analysis — summarise, analyse contracts and generate issue lists from within Word."/>
+  <Description DefaultValue="Duplar AI for Analysis — summarise, analyse contracts and generate issue lists from within Word."/>
 
   <IconUrl DefaultValue="https://duplardigital.github.io/daila-word-addin/assets/icon-32.png"/>
   <HighResolutionIconUrl DefaultValue="https://duplardigital.github.io/daila-word-addin/assets/icon-80.png"/>
