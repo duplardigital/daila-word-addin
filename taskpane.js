@@ -136,46 +136,14 @@ async function handleResult(action, result, originalName) {
 // ─── Read document as base64 ──────────────────
 
 function getDocumentAsBase64() {
-  return new Promise((resolve, reject) => {
-    Office.context.document.getFileAsync(
-      Office.FileType.Compressed,   // returns .docx binary
-      { sliceSize: 65536 },
-      (result) => {
-        if (result.status !== Office.AsyncResultStatus.Succeeded) {
-          return reject(new Error('Could not read document: ' + result.error.message));
-        }
-
-        const file   = result.value;
-        const slices = [];
-        let   index  = 0;
-
-        function getNextSlice() {
-          file.getSliceAsync(index, (sliceResult) => {
-            if (sliceResult.status !== Office.AsyncResultStatus.Succeeded) {
-              file.closeAsync();
-              return reject(new Error('Slice read failed: ' + sliceResult.error.message));
-            }
-
-            slices.push(sliceResult.value.data);
-            index++;
-
-            if (index < file.sliceCount) {
-              getNextSlice();
-            } else {
-              file.closeAsync();
-              // Combine Uint8Array slices → base64
-              const combined = concatUint8Arrays(slices);
-              resolve(uint8ToBase64(combined));
-            }
-          });
-        }
-
-        getNextSlice();
-      }
-    );
+  return new Promise((resolve) => {
+    // TEMPORARY: return dummy base64 to test webhook connectivity
+    console.log('getDocumentAsBase64: returning dummy data');
+    setTimeout(() => {
+      resolve('DUMMYDOCUMENTBASE64TESTSTRING');
+    }, 500);
   });
 }
-
 // ─── Open base64 docx as new Word document ────
 
 function openBase64AsNewDoc(base64, filename) {
