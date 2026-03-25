@@ -138,63 +138,22 @@ async function handleResult(action, result, originalName) {
 function getDocumentAsBase64() {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
-      reject(new Error('Document read timed out after 15 seconds'));
+      reject(new Error('Document read timed out'));
     }, 15000);
 
-    Office.context.document.getFileAsync(
-      Office.FileType.Compressed,
-      { sliceSize: 4096 },
-      (result) => {
-        if (result.status !== Office.AsyncResultStatus.Succeeded) {
-          clearTimeout(timeout);
-          return reject(new Error('getFileAsync failed: ' + result.error.message));
-        }
-
-        const file = result.value;
-        const totalSlices = file.sliceCount;
-        const slices = new Array(totalSlices);
-        let slicesReceived = 0;
-
-        function getSlice(index) {
-          file.getSliceAsync(index, (sliceResult) => {
-            if (sliceResult.status !== Office.AsyncResultStatus.Succeeded) {
-              clearTimeout(timeout);
-              file.closeAsync();
-              return reject(new Error('getSliceAsync failed at slice ' + index + ': ' + sliceResult.error.message));
-            }
-
-            slices[index] = sliceResult.value.data;
-            slicesReceived++;
-
-            if (slicesReceived === totalSlices) {
-              clearTimeout(timeout);
-              file.closeAsync();
-
-              // Combine all slices
-              const totalBytes = slices.reduce((acc, s) => acc + s.byteLength, 0);
-              const combined = new Uint8Array(totalBytes);
-              let offset = 0;
-              for (const slice of slices) {
-                combined.set(new Uint8Array(slice), offset);
-                offset += slice.byteLength;
-              }
-
-              // Convert to base64
-              let binary = '';
-              const chunkSize = 8192;
-              for (let i = 0; i < combined.length; i += chunkSize) {
-                binary += String.fromCharCode(...combined.subarray(i, i + chunkSize));
-              }
-              resolve(btoa(binary));
-            } else {
-              getSlice(index + 1);
-            }
-          });
-        }
-
-        getSlice(0);
+    Word.run(async (context) => {
+      try {
+        const body = context.document.body;
+        body.load('text');
+        await context.sync();
+        clearTimeout(timeout);
+        // Return the text — we'll send this as plain text to Make
+        resolve(body.text);
+      } catch (err) {
+        clearTimeout(timeout);
+        reject(new Error('Word.run failed: ' + err.message));
       }
-    );
+    });
   });
 }
 // ─── Open base64 docx as new Word document ────
