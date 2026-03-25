@@ -15,9 +15,9 @@
   <DisplayName DefaultValue="DAILA"/>
   <Description DefaultValue="Document AI for Legal Analysis — summarise, analyse contracts and generate issue lists from within Word."/>
 
-  <IconUrl DefaultValue="https://YOUR-HOST/assets/icon-32.png"/>
-  <HighResolutionIconUrl DefaultValue="https://YOUR-HOST/assets/icon-80.png"/>
-  <SupportUrl DefaultValue="https://YOUR-HOST"/>
+  <IconUrl DefaultValue="https://duplardigital.github.io/daila-word-addin/assets/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://duplardigital.github.io/daila-word-addin/assets/icon-80.png"/>
+  <SupportUrl DefaultValue="https://duplardigital.github.io/daila-word-addin"/>
 
   <!-- ═══ Host (Word only) ════════════════════════════ -->
   <Hosts>
@@ -25,7 +25,7 @@
   </Hosts>
 
   <DefaultSettings>
-    <SourceLocation DefaultValue="https://YOUR-HOST/taskpane.html"/>
+    <SourceLocation DefaultValue="https://duplardigital.github.io/daila-word-addin/taskpane.html"/>
   </DefaultSettings>
 
   <!-- ═══ Permissions ════════════════════════════════ -->
@@ -78,13 +78,13 @@
     <!-- ═══ Resources ══════════════════════════════════ -->
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="https://YOUR-HOST/assets/icon-16.png"/>
-        <bt:Image id="Icon.32x32" DefaultValue="https://YOUR-HOST/assets/icon-32.png"/>
-        <bt:Image id="Icon.80x80" DefaultValue="https://YOUR-HOST/assets/icon-80.png"/>
+        <bt:Image id="Icon.16x16" DefaultValue="https://duplardigital.github.io/daila-word-addin/assets/icon-16.png"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://duplardigital.github.io/daila-word-addin/assets/icon-32.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://duplardigital.github.io/daila-word-addin/assets/icon-80.png"/>
       </bt:Images>
 
       <bt:Urls>
-        <bt:Url id="Taskpane.Url" DefaultValue="https://YOUR-HOST/taskpane.html"/>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://duplardigital.github.io/daila-word-addin/taskpane.html"/>
       </bt:Urls>
 
       <bt:ShortStrings>
