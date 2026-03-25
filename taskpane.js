@@ -68,7 +68,7 @@ async function runAction(action) {
       body: JSON.stringify({
         action: action,
         filename: docName,
-        document: base64Doc,
+        document: base64Doc, //actually now plain text despite variable name
         timestamp: new Date().toISOString(),
       }),
     });
