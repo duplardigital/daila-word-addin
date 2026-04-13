@@ -158,41 +158,46 @@ function getDocumentAsBase64() {
 }
 // ─── Open base64 docx as new Word document ────
 
-function openBase64AsNewDoc(base64, filename) {
+function getDocumentAsBase64() {
   return new Promise((resolve, reject) => {
-    // Decode base64 → byte array
-    const binary = atob(base64);
-    const bytes  = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
+    const timeout = setTimeout(() => {
+      reject(new Error('Document read timed out'));
+    }, 15000);
 
-    // Create a Blob and object URL, then use Word API to open
-    const blob = new Blob([bytes], {
-      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    });
-    const url = URL.createObjectURL(blob);
+    Office.context.document.getFileAsync(
+      Office.FileType.Compressed,   // gets the real .docx binary
+      { sliceSize: 65536 },
+      (result) => {
+        clearTimeout(timeout);
+        if (result.status !== Office.AsyncResultStatus.Succeeded) {
+          reject(new Error('getFileAsync failed: ' + result.error.message));
+          return;
+        }
 
-    // Word.run to open the document
-    Word.run(async (context) => {
-      try {
-        // openDocument opens a new document from a base64 string (Word 2016+)
-        context.application.openDocument(base64);
-        await context.sync();
-        URL.revokeObjectURL(url);
-        resolve();
-      } catch (e) {
-        // Fallback: trigger download if openDocument not available
-        URL.revokeObjectURL(url);
-        const blobUrl = URL.createObjectURL(blob);
-        triggerDownload(blobUrl, filename);
-        resolve();
+        const file = result.value;
+        const sliceCount = file.sliceCount;
+        const slices = [];
+        let slicesReceived = 0;
+
+        for (let i = 0; i < sliceCount; i++) {
+          file.getSliceAsync(i, (sliceResult) => {
+            if (sliceResult.status !== Office.AsyncResultStatus.Succeeded) {
+              file.closeAsync();
+              reject(new Error('getSliceAsync failed: ' + sliceResult.error.message));
+              return;
+            }
+            slices[sliceResult.value.index] = sliceResult.value.data;
+            slicesReceived++;
+            if (slicesReceived === sliceCount) {
+              file.closeAsync();
+              // Combine all slices into one base64 string
+              const combined = concatUint8Arrays(slices);
+              resolve(uint8ToBase64(combined));
+            }
+          });
+        }
       }
-    }).catch((err) => {
-      // If Word.run fails entirely, fall back to download
-      triggerDownload(url, filename);
-      resolve();
-    });
+    );
   });
 }
 
