@@ -28,7 +28,6 @@ function loadDocumentName() {
     const nameEl = document.getElementById('docName');
     if (result.status === Office.AsyncResultStatus.Succeeded) {
       const url = result.value.url;
-      // Extract filename from full path/URL
       const parts = url.split(/[\\/]/);
       nameEl.textContent = parts[parts.length - 1] || 'Active document';
     } else {
@@ -54,9 +53,9 @@ async function runAction(action) {
     console.log('Step 1: starting');
     showResult('info', 'Debug', 'Step 1: starting...');
 
-    const base64Doc = await getDocumentAsBase64();
-    console.log('Step 2: got document, length:', base64Doc.length);
-    showResult('info', 'Debug', 'Step 2: document read OK, length: ' + base64Doc.length);
+    const docText = await getDocumentAsText();
+    console.log('Step 2: got document, length:', docText.length);
+    showResult('info', 'Debug', 'Step 2: document read OK, length: ' + docText.length);
 
     const docName = document.getElementById('docName').textContent || 'document.docx';
     console.log('Step 3: calling webhook:', webhookUrl);
@@ -66,9 +65,9 @@ async function runAction(action) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: action,
-        filename: docName,
-        document: base64Doc, 
+        action:    action,
+        filename:  docName,
+        document:  docText,
         timestamp: new Date().toISOString(),
       }),
     });
@@ -107,24 +106,20 @@ async function runAction(action) {
 async function handleResult(action, result, originalName) {
   const label = ACTION_LABELS[action];
 
-  // Optional message from Make
   const message = result.message || `${label} complete.`;
 
   if (result.type === 'base64' && result.data) {
-    // Open as new Word document directly
     await openBase64AsNewDoc(result.data, result.filename || buildOutputName(action, originalName));
     showResult('success', `${label} ready`,
       message + '\n\nThe result has been opened as a new document.');
     showStatus('Done');
 
   } else if (result.type === 'url' && result.url) {
-    // Show a download / open button
     showResult('success', `${label} ready`, message);
     showDownloadButton(result.url, result.filename || buildOutputName(action, originalName));
     showStatus('Done');
 
   } else {
-    // Unexpected shape — show raw for debugging
     showResult('info', 'Unexpected response format',
       'Make returned an unrecognised response. Check the browser console for details.\n\n'
       + JSON.stringify(result, null, 2).slice(0, 300));
@@ -133,12 +128,18 @@ async function handleResult(action, result, originalName) {
   }
 }
 
-// ─── Read document as base64 ──────────────────
+// ─── Read document as plain text ─────────────
+//
+//  Uses Word.run / body.load('text') — works reliably in sideloaded
+//  and Trusted Catalog add-ins. getFileAsync is NOT used here because
+//  it hangs indefinitely in sideloaded environments and never fires
+//  its callback.
+//
 
-function getDocumentAsBase64() {
+function getDocumentAsText() {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
-      reject(new Error('Document read timed out'));
+      reject(new Error('Document read timed out after 15 seconds'));
     }, 15000);
 
     Word.run(async (context) => {
@@ -147,7 +148,6 @@ function getDocumentAsBase64() {
         body.load('text');
         await context.sync();
         clearTimeout(timeout);
-        // Return the text — we'll send this as plain text to Make
         resolve(body.text);
       } catch (err) {
         clearTimeout(timeout);
@@ -156,55 +156,45 @@ function getDocumentAsBase64() {
     });
   });
 }
+
 // ─── Open base64 docx as new Word document ────
 
-function getDocumentAsBase64() {
+function openBase64AsNewDoc(base64, filename) {
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error('Document read timed out'));
-    }, 15000);
+    const binary = atob(base64);
+    const bytes  = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
 
-    Office.context.document.getFileAsync(
-      Office.FileType.Compressed,   // gets the real .docx binary
-      { sliceSize: 65536 },
-      (result) => {
-        clearTimeout(timeout);
-        if (result.status !== Office.AsyncResultStatus.Succeeded) {
-          reject(new Error('getFileAsync failed: ' + result.error.message));
-          return;
-        }
+    const blob = new Blob([bytes], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    });
+    const url = URL.createObjectURL(blob);
 
-        const file = result.value;
-        const sliceCount = file.sliceCount;
-        const slices = [];
-        let slicesReceived = 0;
-
-        for (let i = 0; i < sliceCount; i++) {
-          file.getSliceAsync(i, (sliceResult) => {
-            if (sliceResult.status !== Office.AsyncResultStatus.Succeeded) {
-              file.closeAsync();
-              reject(new Error('getSliceAsync failed: ' + sliceResult.error.message));
-              return;
-            }
-            slices[sliceResult.value.index] = sliceResult.value.data;
-            slicesReceived++;
-            if (slicesReceived === sliceCount) {
-              file.closeAsync();
-              // Combine all slices into one base64 string
-              const combined = concatUint8Arrays(slices);
-              resolve(uint8ToBase64(combined));
-            }
-          });
-        }
+    Word.run(async (context) => {
+      try {
+        context.application.openDocument(base64);
+        await context.sync();
+        URL.revokeObjectURL(url);
+        resolve();
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        const blobUrl = URL.createObjectURL(blob);
+        triggerDownload(blobUrl, filename);
+        resolve();
       }
-    );
+    }).catch(() => {
+      triggerDownload(url, filename);
+      resolve();
+    });
   });
 }
 
 // ─── Helpers ─────────────────────────────────
 
 function buildOutputName(action, original) {
-  const base = original.replace(/\.docx$/i, '');
+  const base   = original.replace(/\.docx$/i, '');
   const suffix = { summary: 'Summary', contract: 'Contract-Analysis', issues: 'Issue-List' };
   return `${base}_${suffix[action] || action}.docx`;
 }
@@ -242,12 +232,10 @@ function triggerDownload(url, filename) {
 
 function setRunning(action, running) {
   const actionMap = { summary: 'btn-summary', contract: 'btn-contract', issues: 'btn-issues' };
-  const allBtns = Object.values(actionMap).map(id => document.getElementById(id));
+  const allBtns   = Object.values(actionMap).map(id => document.getElementById(id));
 
-  // Disable / enable all buttons
   allBtns.forEach(btn => { btn.disabled = running; });
 
-  // Toggle running class on the active button
   const activeBtn = document.getElementById(actionMap[action]);
   if (running) {
     activeBtn.classList.add('running');
@@ -255,24 +243,19 @@ function setRunning(action, running) {
     activeBtn.classList.remove('running');
   }
 
-  // Progress bar
   const wrap = document.getElementById('progressWrap');
   wrap.classList.toggle('visible', running);
 }
 
 function showResult(type, header, body) {
-  const area    = document.getElementById('resultArea');
-  const headerEl = document.getElementById('resultHeader');
-  const bodyEl   = document.getElementById('resultBody');
+  const area      = document.getElementById('resultArea');
+  const headerEl  = document.getElementById('resultHeader');
+  const bodyEl    = document.getElementById('resultBody');
   const actionsEl = document.getElementById('resultActions');
 
-  const icons = {
-    success: '✓',
-    error:   '✕',
-    info:    'i',
-  };
+  const icons = { success: '✓', error: '✕', info: 'i' };
 
-  area.className = `result-area visible ${type}`;
+  area.className       = `result-area visible ${type}`;
   headerEl.textContent = `${icons[type] || ''} ${header}`;
   bodyEl.textContent   = body || '';
   actionsEl.innerHTML  = '';
@@ -291,8 +274,7 @@ function showDownloadButton(url, filename) {
 }
 
 function clearResult() {
-  const area = document.getElementById('resultArea');
-  area.className = 'result-area';
+  document.getElementById('resultArea').className = 'result-area';
 }
 
 function showStatus(text, isError = false) {
